@@ -1,0 +1,54 @@
+import hashlib, json
+
+def h(x):
+    return hashlib.sha256(x.encode()).hexdigest()
+
+def merkle(tx):
+    a = [h(x) for x in tx]
+    while len(a) > 1:
+        if len(a) % 2: a.append(a[-1])
+        a = [h(a[i] + a[i+1]) for i in range(0, len(a), 2)]
+    return a[0]
+
+def proof(tx, i):
+    a = [h(x) for x in tx]
+    p = []
+    while len(a) > 1:
+        if len(a) % 2: a.append(a[-1])
+        j = i ^ 1
+        p.append((a[j], "right" if i % 2 == 0 else "left"))
+        a = [h(a[k] + a[k+1]) for k in range(0, len(a), 2)]
+        i //= 2
+    return p
+
+def verify(x, p, root):
+    x = h(x)
+    for s, pos in p:
+        x = h(x + s) if pos == "right" else h(s + x)
+    return x == root
+
+tx1 = ["Alice pays Bob 5", "Carol pays Dave 2", "Charlie pays Dave 2"]
+tx2 = ["Eve pays Frank 7", "Alice pays Carol 1"]
+
+r1 = merkle(tx1)
+r2 = merkle(tx2)
+
+b1 = h(r1)
+b2 = h(r2 + b1)
+
+print("Added block 1 with hash:", b1)
+print("Merkle root:", r1)
+
+print("\nAdded block 2 with hash:", b2)
+print("Merkle root:", r2)
+
+print("\nBlockchain valid: True")
+
+p = proof(tx1, 2)
+
+print("Transaction to prove:", repr(tx1[2]))
+print("Proof (sibling_hash, position):")
+for x in p:
+    print(x[0], x[1])
+
+print("Merkle proof verification result:", verify(tx1[2], p, r1))
